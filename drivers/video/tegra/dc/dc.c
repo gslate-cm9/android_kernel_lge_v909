@@ -47,6 +47,7 @@
 #include <mach/mc.h>
 #include <linux/nvhost.h>
 #include <mach/latency_allowance.h>
+#include <mach/pinmux.h>
 
 #include "dc_reg.h"
 #include "dc_config.h"
@@ -1597,6 +1598,7 @@ void tegra_dc_setup_clk(struct tegra_dc *dc, struct clk *clk)
 	}
 
 	pclk = tegra_dc_pclk_round_rate(dc, dc->mode.pclk);
+	printk("pclk = %d in %s \n", pclk, __func__);
 	tegra_dvfs_set_rate(clk, pclk);
 }
 
@@ -1816,6 +1818,8 @@ static int tegra_dc_program_mode(struct tegra_dc *dc, struct tegra_dc_mode *mode
 		return -EINVAL;
 	}
 
+	printk("rate = %ld, pclk = %ld, mode->pclk = %d in %s \n",
+		 rate, pclk, mode->pclk, __func__);
 	div = (rate * 2 / pclk) - 2;
 	trace_printk("%s:div=%ld\n", dc->ndev->name, div);
 
@@ -2827,7 +2831,9 @@ void tegra_dc_disable(struct tegra_dc *dc)
 	if (dc->enabled) {
 		dc->enabled = false;
 
+#if !defined (CONFIG_MACH_STARTABLET)
 		if (!dc->suspended)
+#endif
 			_tegra_dc_disable(dc);
 	}
 
@@ -2847,6 +2853,10 @@ static void tegra_dc_reset_worker(struct work_struct *work)
 	struct tegra_dc *dc =
 		container_of(work, struct tegra_dc, reset_work);
 
+#if defined (CONFIG_MACH_STARTABLET)
+	/* backup registers */
+	unsigned long _reg[3] = {0, 0, 0};
+#endif
 	unsigned long val = 0;
 
 	mutex_lock(&shared_lock);
@@ -2857,8 +2867,24 @@ static void tegra_dc_reset_worker(struct work_struct *work)
 
 	mutex_lock(&dc->lock);
 
+
 	if (dc->enabled == false)
 		goto unlock;
+
+#if defined (CONFIG_MACH_STARTABLET)
+	/* save backlight pwm register */
+	if (dc->ndev->id == 0) {
+		_reg[0] = tegra_dc_readl(dc, DC_COM_PIN_OUTPUT_SELECT5);
+		_reg[1] = tegra_dc_readl(dc, DC_COM_PM1_CONTROL);
+		_reg[2] = tegra_dc_readl(dc, DC_COM_PM1_DUTY_CYCLE);
+		/* set backlight intensity  to 0 in order to hide the cracked
+		   LCD screen */
+
+
+		tegra_dc_writel(dc, 0, DC_COM_PM1_DUTY_CYCLE);
+
+	}
+#endif
 
 	dc->enabled = false;
 
@@ -2889,7 +2915,18 @@ static void tegra_dc_reset_worker(struct work_struct *work)
 	val |= 0x100;
 	tegra_dc_writel(dc, val, DC_CMD_CONT_SYNCPT_VSYNC);
 
+#if defined (CONFIG_MACH_STARTABLET)
+	/* restore LCD backlight pwm register */
+	if (dc->ndev->id == 0) {
+	printk("jh.chun 20\n");
+		tegra_dc_writel(dc, _reg[0], DC_COM_PIN_OUTPUT_SELECT5);
+		tegra_dc_writel(dc, _reg[1], DC_COM_PM1_CONTROL);
+		tegra_dc_writel(dc, _reg[2], DC_COM_PM1_DUTY_CYCLE);
+	}
+#endif
+
 unlock:
+
 	mutex_unlock(&dc->lock);
 	mutex_unlock(&shared_lock);
 	trace_printk("%s:reset complete\n", dc->ndev->name);
@@ -3163,12 +3200,27 @@ static int tegra_dc_remove(struct nvhost_device *ndev)
 	return 0;
 }
 
+#if defined (CONFIG_MACH_STARTABLET)
+static void tegra_dc_shutdown(struct nvhost_device *ndev)
+{
+	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
+
+	if (dc->out && dc->out->disable)
+		dc->out->disable();
+}
+#endif
+
 #ifdef CONFIG_PM
 static int tegra_dc_suspend(struct nvhost_device *ndev, pm_message_t state)
 {
 	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
 
 	trace_printk("%s:suspend\n", dc->ndev->name);
+#if defined (CONFIG_MACH_STARTABLET)
+	/* DC0 LCD:  PM policy is early suspend */
+	if(ndev->id == 0)
+		return 0;
+#endif
 	dev_info(&ndev->dev, "suspend\n");
 
 	tegra_dc_ext_disable(dc->ext);
@@ -3180,8 +3232,15 @@ static int tegra_dc_suspend(struct nvhost_device *ndev, pm_message_t state)
 
 	if (dc->enabled) {
 		_tegra_dc_disable(dc);
-
+#if !defined (CONFIG_MACH_STARTABLET)
 		dc->suspended = true;
+#endif
+#if defined (CONFIG_MACH_STARTABLET)
+	/* DC1 HDMI: This flag should be false in order to be possible to
+	   enable DC1 by tegra_dc_enable function. */
+	if(ndev->id == 1)
+		dc->enabled = false;
+#endif
 	}
 
 	if (dc->out && dc->out->postsuspend) {
@@ -3255,9 +3314,15 @@ struct nvhost_driver tegra_dc_driver = {
 	},
 	.probe = tegra_dc_probe,
 	.remove = tegra_dc_remove,
+#if defined (CONFIG_MACH_STARTABLET)
+	.shutdown = tegra_dc_shutdown,
+#endif
 #ifdef CONFIG_PM
 	.suspend = tegra_dc_suspend,
+#if !defined (CONFIG_MACH_STARTABLET)
+	/* DC0, DC1 are resumed by the late resume function */
 	.resume = tegra_dc_resume,
+#endif
 #endif
 };
 
