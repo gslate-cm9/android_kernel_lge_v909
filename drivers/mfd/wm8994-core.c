@@ -28,6 +28,12 @@
 #include <linux/mfd/wm8994/pdata.h>
 #include <linux/mfd/wm8994/registers.h>
 
+#if defined(CONFIG_ARCH_TEGRA)
+#include <linux/gpio.h>
+
+#define GPIO_WM8994_LDO_EN	122 /* TEGRA_GPIO_PP2 */
+#endif /* defined(CONFIG_ARCH_TEGRA) */
+
 static int wm8994_read(struct wm8994 *wm8994, unsigned short reg,
 		       int bytes, void *dest)
 {
@@ -318,6 +324,27 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 
 	dev_set_drvdata(wm8994->dev, wm8994);
 
+#if defined(CONFIG_ARCH_TEGRA)
+	ret = gpio_request(GPIO_WM8994_LDO_EN, "wm8994_ldo");
+	if (ret < 0) {
+		printk(KERN_ERR "Can't request gpio%d for wm8994_ldo: %d\n",
+			GPIO_WM8994_LDO_EN, ret);
+		goto err_regmap;
+	}
+
+	tegra_gpio_enable(GPIO_WM8994_LDO_EN);
+
+	ret = gpio_direction_output(GPIO_WM8994_LDO_EN, 1);
+	if (ret < 0) {
+		printk(KERN_ERR "Can't set gpio%d direction to output: %d\n",
+			GPIO_WM8994_LDO_EN, ret);
+		goto err_regmap;
+	}
+
+	gpio_set_value(GPIO_WM8994_LDO_EN, 1);
+	msleep(20);
+#endif /* defined(CONFIG_ARCH_TEGRA) */
+
 	/* Add the on-chip regulators first for bootstrapping */
 	ret = mfd_add_devices(wm8994->dev, -1,
 			      wm8994_regulator_devs,
@@ -378,7 +405,19 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 
 	ret = wm8994_reg_read(wm8994, WM8994_SOFTWARE_RESET);
 	if (ret < 0) {
-		dev_err(wm8994->dev, "Failed to read ID register\n");
+		dev_err(wm8994->dev, "1st : Failed to read ID register\n");
+		msleep(10);
+	}
+
+	ret = wm8994_reg_read(wm8994, WM8994_SOFTWARE_RESET);
+	if (ret < 0) {
+		dev_err(wm8994->dev, "2nd : Failed to read ID register\n");
+		msleep(10);
+	}
+
+	ret = wm8994_reg_read(wm8994, WM8994_SOFTWARE_RESET);
+	if (ret < 0) {
+		dev_err(wm8994->dev, "3rd : Failed to read ID register\n");
 		goto err_enable;
 	}
 	switch (ret) {
@@ -415,6 +454,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		switch (ret) {
 		case 0:
 		case 1:
+		if (wm8994->type == WM8994)
 			dev_warn(wm8994->dev,
 				 "revision %c not fully supported\n",
 				 'A' + ret);
@@ -442,6 +482,8 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 			}
 		}
 	}
+		wm8994_set_bits(wm8994, WM8994_GPIO_1,
+				0xf,0x1);
 
 	/* In some system designs where the regulators are not in use,
 	 * we can achieve a small reduction in leakage currents by
@@ -509,8 +551,10 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 	int ret;
 
 	wm8994 = kzalloc(sizeof(struct wm8994), GFP_KERNEL);
-	if (wm8994 == NULL)
+	if (wm8994 == NULL) {
+		kfree(i2c);
 		return -ENOMEM;
+	}
 
 	i2c_set_clientdata(i2c, wm8994);
 	wm8994->dev = &i2c->dev;
@@ -533,6 +577,10 @@ static int wm8994_i2c_remove(struct i2c_client *i2c)
 {
 	struct wm8994 *wm8994 = i2c_get_clientdata(i2c);
 
+#if defined(CONFIG_ARCH_TEGRA)
+	tegra_gpio_disable(GPIO_WM8994_LDO_EN);
+	gpio_free(GPIO_WM8994_LDO_EN);
+#endif /* defined(CONFIG_ARCH_TEGRA) */
 	wm8994_device_exit(wm8994);
 
 	return 0;
