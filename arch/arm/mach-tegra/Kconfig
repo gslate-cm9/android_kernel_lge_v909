@@ -136,6 +136,20 @@ config MACH_WHISTLER
        help
          Support for NVIDIA Whistler development platform
 
+config MACH_STARTABLET
+       bool "STARTABLET board"
+       help
+         Support for LG-E999 platform
+
+if MACH_STARTABLET
+config STARTABLET_REBOOT_REASON
+        bool "Enable to write reboot reason into NV area"
+        depends on MACH_STARTABLET
+        help
+          Enable to write reboot reason into NV area
+
+endif
+
 config MACH_ARUBA
        bool "Aruba board"
        depends on ARCH_TEGRA_3x_SOC
