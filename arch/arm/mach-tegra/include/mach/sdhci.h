@@ -28,8 +28,12 @@ struct tegra_sdhci_platform_data {
 	int pm_flags;
 	int pm_caps;
 	unsigned int max_clk_limit;
+#ifdef CONFIG_EMBEDDED_MMC_START_OFFSET
+	unsigned int startoffset;
+#endif
 	unsigned int tap_delay;
 	struct mmc_platform_data mmc_data;
+	int is_always_on;
 };
 
 #endif
