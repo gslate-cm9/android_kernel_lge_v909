@@ -34,6 +34,8 @@
 #define GPIO_WM8994_LDO_EN	122 /* TEGRA_GPIO_PP2 */
 #endif /* defined(CONFIG_ARCH_TEGRA) */
 
+#include "wm8994_reg_dump.h"
+
 static int wm8994_read(struct wm8994 *wm8994, unsigned short reg,
 		       int bytes, void *dest)
 {
@@ -513,6 +515,8 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 	pm_runtime_enable(wm8994->dev);
 	pm_runtime_resume(wm8994->dev);
 
+	wm8994_debug_add(wm8994);
+
 	return 0;
 
 err_irq:
@@ -539,6 +543,7 @@ static void wm8994_device_exit(struct wm8994 *wm8994)
 	regulator_bulk_disable(wm8994->num_supplies,
 			       wm8994->supplies);
 	regulator_bulk_free(wm8994->num_supplies, wm8994->supplies);
+	wm8994_debug_remove();
 	kfree(wm8994->supplies);
 	regmap_exit(wm8994->regmap);
 	kfree(wm8994);
