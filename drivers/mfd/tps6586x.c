@@ -648,8 +648,18 @@ static int __devexit tps6586x_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
+static void stop_resume_led(struct work_struct *work)
+{
+	tps6586x_set_led_onoff_time(0, 0);
+	tps6586x_set_led(0x00000000);
+}
+
+static DECLARE_DELAYED_WORK(resume_led_off, stop_resume_led);
+
 static int tps6586x_suspend(struct i2c_client *client, pm_message_t mesg)
 {
+	tps6586x_set_led_onoff_time(1000, 0);
+	tps6586x_set_led(0x00200000);
 	disable_irq(client->irq);
 	return 0;
 }
@@ -657,6 +667,11 @@ static int tps6586x_suspend(struct i2c_client *client, pm_message_t mesg)
 static int tps6586x_resume(struct i2c_client *client)
 {
 	enable_irq(client->irq);
+	tps6586x_set_led_onoff_time(500, 1000);
+	tps6586x_set_led(0x00004000);
+
+	schedule_delayed_work(&resume_led_off, msecs_to_jiffies(5000));
+
 	return 0;
 }
 
