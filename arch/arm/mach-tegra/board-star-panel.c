@@ -390,6 +390,12 @@ int __init star_panel_init(void)
 	star_carveouts[1].base = tegra_carveout_start;
 	star_carveouts[1].size = tegra_carveout_size;
 
+#ifdef CONFIG_TEGRA_GRHOST
+	err = nvhost_device_register(&tegra_grhost_device);
+	if (err)
+		return err;
+#endif
+
 	err = platform_add_devices(star_gfx_devices,
 				   ARRAY_SIZE(star_gfx_devices));
 
