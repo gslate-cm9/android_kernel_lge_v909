@@ -73,10 +73,6 @@
 #include "star_devices.h"
 #endif
 
-#define CARVEOUT_320MB	1	// 1: 320MB, 0: 256MB (default)
-#define CARVEOUT_352MB  0
-#define CARVEOUT_384MB  0
-
 static struct tegra_utmip_config utmi_phy_config[] = {
 	[0] = {
 			.hssync_start_delay = 0,
@@ -489,35 +485,6 @@ static int __init star_gps_init(void)
 //LGE_UPDATE_E jayeong.im@lge.com 2010-11-30 star_gps_init
 #endif
 
-#if defined(CONFIG_ANDROID_RAM_CONSOLE)
-#if CARVEOUT_384MB
-#define STARTABLET_RAM_CONSOLE_BASE	((640-2)*SZ_1M)	// 384MB Carveout
-#elif CARVEOUT_352MB
-#define STARTABLET_RAM_CONSOLE_BASE	((672-2)*SZ_1M)	// 352MB Carveout
-#elif CARVEOUT_320MB
-#define STARTABLET_RAM_CONSOLE_BASE	((704-2)*SZ_1M)	// 320MB Carveout
-#else
-#define STARTABLET_RAM_CONSOLE_BASE	((768-2)*SZ_1M)	// 256MB Carveout
-#endif
-#define STARTABLET_RAM_CONSOLE_SIZE (SZ_1M)
-
-static struct resource star_ram_console_resource[] = {
-	{
-		.name	= "ram_console",
-		.start	= STARTABLET_RAM_CONSOLE_BASE,
-		.end	= STARTABLET_RAM_CONSOLE_BASE + STARTABLET_RAM_CONSOLE_SIZE - 1,
-		.flags	= IORESOURCE_MEM,
-	}
-};
-
-static struct platform_device star_ram_console_device = {
-	.name = "ram_console",
-	.id = -1,
-	.num_resources	= ARRAY_SIZE(star_ram_console_resource),
-	.resource		= star_ram_console_resource,
-};
-#endif
-
 static struct platform_device *star_devices[] __initdata = {
 	&star_powerkey,
 	&tegra_gps_gpio,
@@ -544,9 +511,6 @@ static struct platform_device *star_devices[] __initdata = {
 	&tegra_avp_device,
 	&tegra_displaytest,
 	&tegra_camera_flash, //2010.12.08 hyungmoo.huh@lge.com for camera flash LED
-#if defined(CONFIG_ANDROID_RAM_CONSOLE)
-	&star_ram_console_device,
-#endif
 };
 
 static int star_audio_init(void)
@@ -836,6 +800,8 @@ static void __init tegra_star_init(void)
 
 	platform_add_devices(star_devices, ARRAY_SIZE(star_devices));
 
+	tegra_ram_console_debug_init();
+
 	star_audio_init();
 
 	// star_i2c_init();
@@ -872,15 +838,8 @@ void __init tegra_star_reserve(void)
     if (memblock_reserve(0x0, 4096) < 0)
             pr_warn("Cannot reserve first 4K of memory for safety\n");
 
-#if CARVEOUT_384MB
-    tegra_reserve(SZ_256M|SZ_128M, SZ_8M, SZ_16M);
-#elif CARVEOUT_352MB
-	tegra_reserve(SZ_256M|SZ_128M - SZ_32M, SZ_8M, SZ_16M);
-#elif CARVEOUT_320MB
-	tegra_reserve(SZ_256M|SZ_64M, SZ_8M, SZ_16M);
-#else // 256MB
-    tegra_reserve(SZ_256M, SZ_8M, SZ_16M);
-#endif
+    tegra_reserve(SZ_256M, SZ_8M + SZ_1M, SZ_16M);
+    tegra_ram_console_debug_reserve(SZ_1M);
 }
 
 MACHINE_START(STARTABLET, "startablet")
