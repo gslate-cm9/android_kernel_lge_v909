@@ -58,6 +58,10 @@
 #include <asm/setup.h>
 #include <mach/tegra_wm8994_pdata.h>
 
+#if defined(CONFIG_STARTABLET_REBOOT_REASON)
+#include "nv_data.h"
+#endif
+
 #include "board.h"
 #include "clock.h"
 #include "board-star.h"
@@ -786,8 +790,23 @@ static void __init star_uart_init(void)
 				ARRAY_SIZE(star_uart_devices));
 }
 
+#if defined(CONFIG_STARTABLET_REBOOT_REASON)
+static void startablet_pm_restart(char mode, const char *cmd)
+{
+	if (cmd && write_rr_into_nv(cmd))
+		pr_err("%s: Fail to write reboot reason!!!%d-%s\n",
+			 __func__, mode, cmd);
+
+	arm_machine_restart(mode, cmd);
+}
+
 static void __init tegra_star_init(void)
 {
+	arm_pm_restart = startablet_pm_restart;
+#else
+static void __init tegra_star_init(void)
+{
+#endif
 	tegra_clk_init_from_table(star_clk_init_table);
 	star_pinmux_init();
 
