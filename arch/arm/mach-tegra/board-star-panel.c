@@ -410,6 +410,12 @@ int __init star_panel_init(void)
 	res->start = tegra_fb2_start;
 	res->end = tegra_fb2_start + tegra_fb2_size - 1;
 
+        /* Copy the bootloader fb to the fb. */
+	if (tegra_bootloader_fb_start)
+		tegra_move_framebuffer(
+			tegra_fb_start, tegra_bootloader_fb_start,
+			min(tegra_fb_size, tegra_bootloader_fb_size));
+
 	if (!err)
 		err = nvhost_device_register(&star_disp1_device);
 
