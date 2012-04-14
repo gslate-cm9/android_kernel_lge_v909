@@ -301,6 +301,7 @@ static struct platform_device star_nvmap_device = {
 
 static struct platform_device *star_gfx_devices[] __initdata = {
 	&star_nvmap_device,
+	&star_backlight_device,
 };
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -414,9 +415,6 @@ int __init star_panel_init(void)
 
 	if (!err)
 		err = nvhost_device_register(&star_disp2_device);
-
-	if (!err)
-		platform_device_register(&star_backlight_device);
 
 	return err;
 }
