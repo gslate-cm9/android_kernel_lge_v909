@@ -301,7 +301,6 @@ static struct platform_device star_nvmap_device = {
 
 static struct platform_device *star_gfx_devices[] __initdata = {
 	&star_nvmap_device,
-	&tegra_grhost_device,
 };
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
