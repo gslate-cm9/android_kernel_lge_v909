@@ -476,6 +476,32 @@ static int tegra_otg_suspend(struct device *dev)
 	return 0;
 }
 
+static int tegra_otg_resume_noirq(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct tegra_otg_data *tegra_otg = platform_get_drvdata(pdev);
+
+	tegra_otg_enable_clk();
+
+	/* Following delay is intentional.
+	 * It is placed here after observing system hang.
+	 * Root cause is not confirmed.
+	 */
+	msleep(1);
+	/* restore the interupt enable for cable ID and VBUS */
+	clk_enable(tegra_otg->clk);
+	writel(tegra_otg->intr_reg_data, (tegra_otg->regs + USB_PHY_WAKEUP));
+	/* short sleep is required to avoid spurious irqs with wrong ID pin */
+	msleep(1);
+
+	dev_vdbg(dev, "resume_noirq: saved reg: 0x%08x, reg: 0x%08x\n",
+		 tegra_otg->intr_reg_data,
+		 readl(tegra_otg->regs + USB_PHY_WAKEUP));
+	clk_disable(tegra_otg->clk);
+
+	return 0;
+}
+
 static void tegra_otg_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -490,9 +516,7 @@ static void tegra_otg_resume(struct device *dev)
 	 * Root cause is not confirmed.
 	 */
 	msleep(1);
-	/* restore the interupt enable for cable ID and VBUS */
 	clk_enable(tegra_otg->clk);
-	writel(tegra_otg->intr_reg_data, (tegra_otg->regs + USB_PHY_WAKEUP));
 	val = readl(tegra_otg->regs + USB_PHY_WAKEUP);
 	clk_disable(tegra_otg->clk);
 
@@ -512,6 +536,7 @@ static void tegra_otg_resume(struct device *dev)
 
 static const struct dev_pm_ops tegra_otg_pm_ops = {
 	.complete = tegra_otg_resume,
+	.resume_noirq = tegra_otg_resume_noirq,
 	.suspend = tegra_otg_suspend,
 };
 #endif
