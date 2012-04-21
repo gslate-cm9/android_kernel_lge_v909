@@ -17,6 +17,9 @@
 #ifndef _MACH_TEGRA_BOARD_STAR_H
 #define _MACH_TEGRA_BOARD_STAR_H
 
+#define TPS6586X_INT_BASE   TEGRA_NR_IRQS
+#define TPS6586X_INT_END    (TPS6586X_INT_BASE + 32)
+
 int star_regulator_init(void);
 void star_pinmux_init(void);
 void star_fb_alloc(void);
