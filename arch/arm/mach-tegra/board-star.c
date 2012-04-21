@@ -45,6 +45,7 @@
 #include <asm/mach/arch.h>
 #include <mach/usb_phy.h>
 
+#include <linux/mfd/tps6586x.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pwm_backlight.h>
 #include <linux/fsl_devices.h>
@@ -547,6 +548,7 @@ static struct usb_phy_plat_data tegra_usb_phy_pdata[] = {
 	[0] = {
 		.instance = 0,
 		.vbus_gpio = -1,
+		//.vbus_irq = TPS6586X_INT_BASE + TPS6586X_INT_USB_DET,
 	},
 	[1] = {
 		.instance = 1,
@@ -561,12 +563,9 @@ static struct usb_phy_plat_data tegra_usb_phy_pdata[] = {
 static struct tegra_ehci_platform_data tegra_ehci_pdata[] = {
 	[0] = {
 			.phy_config = &utmi_phy_config[0],
-#ifdef CONFIG_USB_TEGRA_OTG
-			.operating_mode = TEGRA_USB_OTG,
-#else
 			.operating_mode = TEGRA_USB_HOST,
-#endif
-			.power_down_on_bus_suspend = 0,
+			.power_down_on_bus_suspend = 1,
+			.default_enable = true,
 	},
 	[1] = {
 			.phy_config = &ulpi_phy_config,
@@ -598,14 +597,12 @@ static void star_usb_init(void)
 
 	tegra_usb_phy_init(tegra_usb_phy_pdata, ARRAY_SIZE(tegra_usb_phy_pdata));
 
-#ifdef CONFIG_USB_TEGRA_OTG
 	/* OTG should be the first to be registered */
 
 	tegra_otg_device.dev.platform_data = &tegra_otg_pdata;
 	platform_device_register(&tegra_otg_device);
 
 	platform_device_register(&tegra_udc_device);
-#endif
 }
 
 static int __init star_muic_path_setup(char *line)
