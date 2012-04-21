@@ -32,6 +32,7 @@
 #include "pm.h"
 #include "wakeups-t2.h"
 #include "board.h"
+#include "board-star.h"
 
 #define PMC_CTRL		0x0
 #define PMC_CTRL_INTR_LOW	(1 << 17)
@@ -129,7 +130,7 @@ static struct regulator_init_data ldo9_data	= REGULATOR_INIT(ldo9,    1250, 3300
 #undef OFF
 
 static struct tps6586x_rtc_platform_data rtc_data = {
-	.irq = TEGRA_NR_IRQS + TPS6586X_INT_RTC_ALM1,
+	.irq = TPS6586X_INT_BASE + TPS6586X_INT_RTC_ALM1,
 	.start = {
 		.year = 2009,
 		.month = 1,
@@ -167,7 +168,7 @@ static struct tps6586x_subdev_info tps_devs[] = {
 };
 
 static struct tps6586x_platform_data tps_platform = {
-	.irq_base = TEGRA_NR_IRQS,
+	.irq_base = TPS6586X_INT_BASE,
 	.num_subdevs = ARRAY_SIZE(tps_devs),
 	.subdevs = tps_devs,
 	.gpio_base = TEGRA_NR_GPIOS,
