@@ -279,6 +279,44 @@ static void mpuirq_init(void)
 static void star_i2c_init(void)
 {
 	hw_rev board_rev = get_hw_rev();
+	int TOUCH_INT		= TEGRA_GPIO_PW0;
+	int TOUCH_MAIN_PWR	= TEGRA_GPIO_PK4;
+	int TOUCH_IO_PWR	= TEGRA_GPIO_PP3;
+	int TOUCH_RESET		= TEGRA_GPIO_PZ3;
+
+	if (board_rev == REV_C)
+		TOUCH_IO_PWR	= TEGRA_GPIO_PK3;
+	if (board_rev == REV_C || board_rev == REV_E) {
+		TOUCH_INT	= TEGRA_GPIO_PB4;
+		TOUCH_RESET	= TEGRA_GPIO_PD1;
+	}
+
+	if (board_rev < REV_G)
+		pr_warn("Touchscreen data is probably off due to wrong"
+			" orientation\n");
+
+	gpio_request(TOUCH_INT, "touch_int_n");
+	tegra_gpio_enable(TOUCH_INT);
+	gpio_direction_input(TOUCH_INT);
+
+	gpio_request(TOUCH_RESET, "touch_reset");
+	tegra_gpio_enable(TOUCH_RESET);
+	gpio_direction_output(TOUCH_RESET,0);
+
+	gpio_request(TOUCH_MAIN_PWR, "touch_main_pwr");
+	tegra_gpio_enable(TOUCH_MAIN_PWR);
+	gpio_direction_output(TOUCH_MAIN_PWR,0);
+
+	gpio_request(TOUCH_IO_PWR, "touch_io_pwr");
+	tegra_gpio_enable(TOUCH_IO_PWR);
+	gpio_direction_output(TOUCH_IO_PWR,0);
+
+	mdelay(5);
+	gpio_set_value(TOUCH_MAIN_PWR,1);
+	mdelay(10);
+	gpio_set_value(TOUCH_IO_PWR,1);
+	gpio_set_value(TOUCH_RESET,1);
+	mdelay(200);
 
 	mpuirq_init();
 
