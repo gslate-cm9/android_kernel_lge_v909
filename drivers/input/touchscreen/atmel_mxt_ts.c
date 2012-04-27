@@ -1782,11 +1782,31 @@ static int mxt_resume(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct mxt_data *data = i2c_get_clientdata(client);
 	struct input_dev *input_dev = data->input_dev;
+	int timeout_counter = 0;
 
 	/* Soft reset */
 	mxt_write_object(data, MXT_GEN_COMMAND_T6, MXT_COMMAND_RESET, 1);
 
-	msleep(MXT_RESET_TIME);
+	if (data->pdata->read_chg == NULL) {
+		msleep(MXT_RESET_NOCHGREAD);
+	} else {
+		switch (data->info.family_id) {
+		case MXT224_ID:
+			msleep(MXT224_RESET_TIME);  break;
+		case MXT768E_ID:
+			msleep(MXT768E_RESET_TIME); break;
+		case MXT1386_ID:
+			msleep(MXT1386_RESET_TIME); break;
+		default:
+			msleep(MXT_RESET_TIME);
+		}
+		while ((timeout_counter++ <= 100) && data->read_chg())
+			msleep(10);
+		if (timeout_counter > 100) {
+			dev_err(&client->dev, "No response after reset!\n");
+			return -EIO;
+		}
+	}
 
 	mutex_lock(&input_dev->mutex);
 
