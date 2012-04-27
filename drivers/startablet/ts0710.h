@@ -65,11 +65,7 @@
 #include <asm/byteorder.h>
 #include <asm/types.h>
 
-#ifdef LGE_KERNEL_MUX
 #define TS0710_MAX_CHN 32
-#else
-#define TS0710_MAX_CHN 14
-#endif
 
 #define SET_PF(ctr) ((ctr) | (1 << 4))
 #define CLR_PF(ctr) ((ctr) & 0xef)
@@ -95,16 +91,10 @@
 #define FLAG_SIZE 2
 
 #define TS0710_MAX_HDR_SIZE 5
-#ifdef LGE_KERNEL_MUX
-
 
 #define MAX_FRAME_SIZE 1516
 
-
 #define DEF_TS0710_MTU (MAX_FRAME_SIZE - (TS0710_MAX_HDR_SIZE + 2))
-#else
-#define DEF_TS0710_MTU 256
-#endif
 
 #define TS0710_BASIC_FLAG 0xF9
 /* the control field */
@@ -296,9 +286,7 @@ typedef struct {
 	wait_queue_head_t	open_wait;
 	wait_queue_head_t	close_wait;
 
-#ifdef LGE_KERNEL_MUX
 	__u8			priority;
-#endif
 } dlci_struct;
 
 /* user space interfaces */

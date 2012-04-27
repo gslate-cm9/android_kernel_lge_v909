@@ -102,15 +102,9 @@
 /* Special Error code might be return from open() to a MUX device file  */
 #define EREJECTED 901           /* Logical data link connection request is rejected */
 
-#ifdef LGE_KERNEL_MUX
 #define TS0710MUX_MAJOR 0  /* Use dynamic allocation*/
-#else
-#define TS0710MUX_MAJOR 250 VBB
-#endif
 
 #define TS0710MUX_MINOR_START 0
-
-
 
 
 #define TS0710MUX_TIME_OUT 250  /* 2500ms, for BP UART hardware flow control AP UART  */
@@ -119,10 +113,6 @@
 #define TS0710MUX_IO_DLCI_FC_OFF 0x54F3
 #define TS0710MUX_IO_FC_ON 0x54F4
 #define TS0710MUX_IO_FC_OFF 0x54F5
-
-#ifndef LGE_KERNEL_MUX
-#define TS0710MUX_MAX_BUF_SIZE 2048
-#endif
 
 #define TS0710MUX_SEND_BUF_OFFSET 10
 #define TS0710MUX_SEND_BUF_SIZE (DEF_TS0710_MTU + TS0710MUX_SEND_BUF_OFFSET + 34)
@@ -145,11 +135,7 @@
 
 
 #define SLIDE_BP_SEQ_OFFSET 1   /*offset from start flag */
-#ifdef LGE_KERNEL_MUX
 #define SEQ_FIELD_SIZE 0
-#else
-#define SEQ_FIELD_SIZE 1
-#endif
 
 #define ADDRESS_FIELD_OFFSET (1 + SEQ_FIELD_SIZE)       /*offset from start flag */
 
@@ -172,9 +158,6 @@ static void fcs_init(void);
 
 static void send_sabm(ts0710_con *ts0710, __u8 dlci);
 static void send_dm(ts0710_con *ts0710, __u8 dlci);
-#ifndef LGE_KERNEL_MUX
-static void send_disc(ts0710_con *ts0710, __u8 dlci);
-#endif
 static void send_ua(ts0710_con *ts0710, __u8 dlci);
 static void send_pn_msg(ts0710_con *ts0710, __u8 prior, __u32 frame_size, __u8 credit_flow,
 			__u8 credits, __u8 dlci,
@@ -184,6 +167,3 @@ static void send_nsc_msg(ts0710_con *ts0710, mcc_type cmd, __u8 cr);
 static void mux_send_uih(ts0710_con *ts0710, __u8 cr, __u8 type, __u8 *data, int len);
 static void ts0710_fcoff_msg(ts0710_con *ts0710, __u8 cr);
 static void ts0710_fcon_msg(ts0710_con *ts0710, __u8 cr);
-#ifndef LGE_KERNEL_MUX
-static void send_ack(ts0710_con *ts0710, __u8 seq_num);
-#endif
