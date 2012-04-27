@@ -595,7 +595,7 @@ int wl_android_init(void)
 #ifdef CUSTOMER_HW2
 	if (!iface_name[0]) {
 		memset(iface_name, 0, IFNAMSIZ);
-		bcm_strncpy_s(iface_name, IFNAMSIZ, "wlan", IFNAMSIZ);
+		bcm_strncpy_s(iface_name, IFNAMSIZ, "eth", IFNAMSIZ);
 	}
 #endif /* CUSTOMER_HW2 */
 	return ret;
