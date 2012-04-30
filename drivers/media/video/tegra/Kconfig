@@ -20,6 +20,13 @@ config TEGRA_DTV
 
           If unsure, say Y
 
+config VIDEO_IMX072
+	tristate "IMX072 camera sensor support"
+	depends on I2C && ARCH_TEGRA
+	---help---
+	  This is a driver for the IMX072 camera sensor
+	  for use with the tegra isp.
+
 config VIDEO_OV5650
         tristate "OV5650 camera sensor support"
         depends on I2C && ARCH_TEGRA
@@ -63,6 +70,13 @@ config VIDEO_AR0832
           This is a driver for the AR0832 camera sensor
           for use with the tegra isp.
 
+config VIDEO_S5K5BAFX
+        tristate "S5K5BAFX camera sensor support"
+        depends on I2C && ARCH_TEGRA
+        ---help---
+          This is a driver for the S5K5BAFX camera sensor
+          for use with the tegra isp.
+
 config VIDEO_SOC380
         tristate "SOC380 camera sensor support"
         depends on I2C && ARCH_TEGRA
@@ -101,4 +115,11 @@ config VIDEO_AD5816
         depends on I2C && ARCH_TEGRA
         ---help---
           This is a driver for the AD5816 focuser
+          for use with the tegra isp.
+
+config VIDEO_DW9716
+        tristate "DW9716 focuser support"
+        depends on I2C && ARCH_TEGRA
+        ---help---
+          This is a driver for the DW9716 focuser
           for use with the tegra isp.
