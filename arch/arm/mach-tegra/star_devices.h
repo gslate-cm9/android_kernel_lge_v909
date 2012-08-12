@@ -12,6 +12,7 @@
 #include <linux/i2c/atmel_mxt_ts.h>
 #include <sound/fm31392.h>
 
+#include "cpu-tegra.h"
 #include "gpio-names.h"
 /*
 ***************************************************************************************************
@@ -131,8 +132,6 @@ fail:
 *                                       Startablet specific devices
 ***************************************************************************************************
 */
-
-extern void tegra_throttling_enable(bool enable);
 
 static struct nct1008_platform_data star_nct1008_pdata = {
 	.supported_hwrev = true,
