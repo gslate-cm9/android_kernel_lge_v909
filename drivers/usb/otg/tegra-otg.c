@@ -522,6 +522,7 @@ static int tegra_otg_suspend(struct device *dev)
 	return 0;
 }
 
+#if 0
 static int tegra_otg_resume_noirq(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -547,6 +548,7 @@ static int tegra_otg_resume_noirq(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static void tegra_otg_resume(struct device *dev)
 {
@@ -580,7 +582,7 @@ static void tegra_otg_resume(struct device *dev)
 
 static const struct dev_pm_ops tegra_otg_pm_ops = {
 	.complete = tegra_otg_resume,
-	.resume_noirq = tegra_otg_resume_noirq,
+	//.resume_noirq = tegra_otg_resume_noirq,
 	.suspend = tegra_otg_suspend,
 };
 #endif
