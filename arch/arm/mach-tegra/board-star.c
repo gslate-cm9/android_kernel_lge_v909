@@ -78,31 +78,6 @@
 #include "star_devices.h"
 #endif
 
-static struct tegra_utmip_config utmi_phy_config[] = {
-	[0] = {
-			.hssync_start_delay = 0,
-			.idle_wait_delay = 17,
-			.elastic_limit = 16,
-			.term_range_adj = 6,
-			.xcvr_setup = 15,
-			.xcvr_lsfslew = 2,
-			.xcvr_lsrslew = 2,
-	},
-	[1] = {
-			.hssync_start_delay = 0,
-			.idle_wait_delay = 17,
-			.elastic_limit = 16,
-			.term_range_adj = 6,
-			.xcvr_setup = 8,
-			.xcvr_lsfslew = 2,
-			.xcvr_lsrslew = 2,
-	},
-};
-
-static struct tegra_ulpi_config ulpi_phy_config = {
-	.reset_gpio = TEGRA_GPIO_PG2,
-	.clk = "cdev2",
-};
 static __initdata struct tegra_clk_init_table star_clk_init_table[] = {
 	/* name		parent		rate		enabled */
 	//clock setting for spi1 and spi2 port
@@ -582,64 +557,71 @@ static void star_keys_init(void)
 		tegra_gpio_enable(star_keys[i].gpio);
 }
 
-static struct usb_phy_plat_data tegra_usb_phy_pdata[] = {
-	[0] = {
-		.instance = 0,
-		.vbus_gpio = -1,
-		//.vbus_irq = TPS6586X_INT_BASE + TPS6586X_INT_USB_DET,
+
+static struct tegra_usb_platform_data tegra_udc_pdata = {
+	.port_otg	= true,
+	.has_hostpc	= false,
+	.phy_intf	= TEGRA_USB_PHY_INTF_UTMI,
+	.op_mode	= TEGRA_USB_OPMODE_DEVICE,
+	.u_data.dev	= {
+		.vbus_pmu_irq			= 0,
+		.vbus_gpio			= -1,
+		.charging_supported		= false,
+		.remote_wakeup_supported	= false,
 	},
-	[1] = {
-		.instance = 1,
-		.vbus_gpio = -1,
-	},
-	[2] = {
-		.instance = 2,
-		.vbus_gpio = -1,
+	.u_cfg.utmi	= {
+		.hssync_start_delay	= 0,
+		.elastic_limit		= 16,
+		.idle_wait_delay	= 17,
+		.term_range_adj		= 6,
+		.xcvr_setup		= 15,
+		.xcvr_lsfslew		= 2,
+		.xcvr_lsrslew		= 2,
+		.xcvr_setup_offset	= 0,
+		.xcvr_use_fuses		= 1,
 	},
 };
 
-static struct tegra_ehci_platform_data tegra_ehci_pdata[] = {
-	[0] = {
-			.phy_config = &utmi_phy_config[0],
-			.operating_mode = TEGRA_USB_HOST,
-			.power_down_on_bus_suspend = 1,
-			.default_enable = true,
+static struct tegra_usb_platform_data tegra_ehci1_utmi_pdata = {
+	.port_otg	= true,
+	.has_hostpc	= false,
+	.phy_intf	= TEGRA_USB_PHY_INTF_UTMI,
+	.op_mode	= TEGRA_USB_OPMODE_HOST,
+	.u_data.host	= {
+		.vbus_gpio			= TEGRA_GPIO_PP1,
+		.vbus_reg			= NULL,
+		.hot_plug			= true,
+		.remote_wakeup_supported	= false,
+		.power_off_on_suspend		= false,
 	},
-	[1] = {
-			.phy_config = &ulpi_phy_config,
-			.operating_mode = TEGRA_USB_HOST,
-			.power_down_on_bus_suspend = 1,
-	},
-	[2] = {
-			.phy_config = &utmi_phy_config[1],
-			.operating_mode = TEGRA_USB_HOST,
-			.power_down_on_bus_suspend = 0,
+	.u_cfg.utmi	= {
+		.hssync_start_delay	= 0,
+		.elastic_limit		= 16,
+		.idle_wait_delay	= 17,
+		.term_range_adj		= 6,
+		.xcvr_setup		= 15,
+		.xcvr_lsfslew		= 2,
+		.xcvr_lsrslew		= 2,
 	},
 };
 
 #ifdef CONFIG_USB_TEGRA_OTG
-static struct tegra_otg_platform_data tegra_otg_pdata = {
+static struct tegra_usb_otg_data tegra_otg_pdata = {
 	.ehci_device	= &tegra_ehci1_device,
-	.ehci_pdata	= &tegra_ehci_pdata[0],
+	.ehci_pdata	= &tegra_ehci1_utmi_pdata,
 };
 #endif
 
 static void star_usb_init(void)
 {
-	int gpio_usb_host_en = TEGRA_GPIO_PP1;
-
 	if (get_hw_rev() < REV_G)
-		gpio_usb_host_en = TEGRA_GPIO_PH0;
-
-	tegra_usb_phy_pdata[0].vbus_gpio = gpio_usb_host_en;
-
-	tegra_usb_phy_init(tegra_usb_phy_pdata, ARRAY_SIZE(tegra_usb_phy_pdata));
+		tegra_otg_pdata.ehci_pdata->u_data.host.vbus_gpio = TEGRA_GPIO_PH0;
 
 	/* OTG should be the first to be registered */
-
 	tegra_otg_device.dev.platform_data = &tegra_otg_pdata;
 	platform_device_register(&tegra_otg_device);
 
+	tegra_udc_device.dev.platform_data = &tegra_udc_pdata;
 	platform_device_register(&tegra_udc_device);
 }
 
