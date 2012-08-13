@@ -65,10 +65,6 @@ DECLARE_WAIT_QUEUE_HEAD(wq_worker);
 		pr_info("nvhdcp: " __VA_ARGS__)
 
 
-#if defined (CONFIG_MACH_STARTABLET)
-extern void set_v3_3(int);
-#endif
-
 /* for nvhdcp.state */
 enum tegra_nvhdcp_state {
 	STATE_OFF,
@@ -143,15 +139,9 @@ static int nvhdcp_i2c_read(struct tegra_nvhdcp *nvhdcp, u8 reg,
 			nvhdcp_err("disconnect during i2c xfer\n");
 			return -EIO;
 		}
-#if defined (CONFIG_MACH_STARTABLET)
-		set_v3_3(1);
-#endif
 		status = i2c_transfer(nvhdcp->client->adapter,
 			msg, ARRAY_SIZE(msg));
-#if defined (CONFIG_MACH_STARTABLET)
-		set_v3_3(0);
-#endif
-		if (status < 0 && retries > 1)
+		if ((status < 0) && (retries > 1))
 			msleep(250);
 	} while ((status < 0) && retries--);
 
@@ -186,15 +176,9 @@ static int nvhdcp_i2c_write(struct tegra_nvhdcp *nvhdcp, u8 reg,
 			nvhdcp_err("disconnect during i2c xfer\n");
 			return -EIO;
 		}
-#if defined (CONFIG_MACH_STARTABLET)
-		set_v3_3(1);
-#endif
 		status = i2c_transfer(nvhdcp->client->adapter,
 			msg, ARRAY_SIZE(msg));
-#if defined (CONFIG_MACH_STARTABLET)
-		set_v3_3(0);
-#endif
-		if (status < 0 && retries > 1)
+		if ((status < 0) && (retries > 1))
 			msleep(250);
 	} while ((status < 0) && retries--);
 
