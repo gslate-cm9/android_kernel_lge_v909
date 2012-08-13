@@ -66,6 +66,7 @@
 #define   USB_PORTSC_PTC(x)	(((x) & 0xf) << 16)
 #define   USB_PORTSC_PP	(1 << 12)
 #define   USB_PORTSC_LS(x) (((x) & 0x3) << 10)
+#define   USB_PORTSC_PR		(1 << 8)
 #define   USB_PORTSC_SUSP	(1 << 7)
 #define   USB_PORTSC_OCC	(1 << 5)
 #define   USB_PORTSC_PEC	(1 << 3)
@@ -967,6 +968,54 @@ static int utmi_phy_resume(struct tegra_usb_phy *phy)
 	return status;
 }
 
+
+static int utmi_phy_bus_reset(struct tegra_usb_phy *phy)
+{
+
+	unsigned long val;
+	int i, tries, retval = 0;
+	void __iomem *base = phy->regs;
+
+	for (i = 0; i < 2; i++) {
+		val = readl(base + USB_PORTSC);
+		val |= USB_PORTSC_PR;
+		writel(val, base + USB_PORTSC);
+		mdelay(10);
+
+		val = readl(base + USB_PORTSC);
+		val &= ~USB_PORTSC_PR;
+		writel(val, base + USB_PORTSC);
+		mdelay(1);
+
+		tries = 100;
+		do {
+			mdelay(1);
+			/*
+			 * Up to this point, Port Enable bit is
+			 * expected to be set after 2 ms waiting.
+			 * USB1 usually takes extra 45 ms, for safety,
+			 * we take 100 ms as timeout.
+			 */
+			val = readl(base + USB_PORTSC);
+               } while (!(val & USB_PORTSC_PE) && tries--);
+
+               if (val & USB_PORTSC_PE)
+                       break;
+	}
+
+	if (i == 2)
+		retval = -ETIMEDOUT;
+
+	/*
+	 * Clear Connect Status Change bit if it's set.
+	 * We can't clear PORT_PEC. It will also cause PORT_PE to be cleared.
+	 */
+	if (val & USB_PORTSC_CSC)
+		writel(USB_PORTSC_CSC, base + USB_PORTSC);
+
+	return retval;
+}
+
 static bool utmi_phy_charger_detect(struct tegra_usb_phy *phy)
 {
 	unsigned long val;
@@ -1783,6 +1832,9 @@ static struct tegra_usb_phy_ops *phy_ops[] = {
 int tegra2_usb_phy_init_ops(struct tegra_usb_phy *phy)
 {
 	phy->ops = phy_ops[phy->pdata->phy_intf];
+
+	if (phy->pdata->phy_intf == TEGRA_USB_PHY_INTF_UTMI && phy->inst == 0)
+		phy->ops->bus_reset = utmi_phy_bus_reset;
 
 	return 0;
 }
