@@ -41,20 +41,13 @@
 
 #define star_bl_enb		TEGRA_GPIO_PS6
 #define star_lvds_shutdown	TEGRA_GPIO_PB2
-#define star_panel_enb		TEGRA_GPIO_PH2
 #define star_hdmi_hpd		TEGRA_GPIO_PN7
 #define star_hdmi_enb		TEGRA_GPIO_PX7
+#define star_pnl_to_lvds_ms 0
+#define star_lvds_to_bl_ms  200
 
-#if defined (CONFIG_MACH_STARTABLET)
-extern void tegra_panel_hdmi_earlysuspend(void);
-extern void tegra_panel_hdmi_detect(void);
-extern void tegra_panel_cancel_early_work(void);
-static int is_early_suspend = 0;
-static int v3_3_count = 0;
-DEFINE_MUTEX(v3_3_control);
-
-#endif
-
+static struct regulator *pnl_pwr;
+static struct regulator *hdmi_pwr;
 
 static struct regulator *star_hdmi_reg = NULL;
 static struct regulator *star_hdmi_pll = NULL;
@@ -87,16 +80,56 @@ static struct platform_device star_backlight_device = {
 
 static int star_panel_enable(void)
 {
+	struct regulator *reg = regulator_get(NULL, "vdd_ldo4");
+
+	if (!reg) {
+		regulator_enable(reg);
+		regulator_put(reg);
+	}
+
+	if (pnl_pwr == NULL) {
+		pnl_pwr = regulator_get(NULL, "pnl_pwr");
+		if (WARN_ON(IS_ERR(pnl_pwr)))
+			pr_err("%s: couldn't get regulator pnl_pwr: %ld\n",
+				__func__, PTR_ERR(pnl_pwr));
+		else
+			regulator_enable(pnl_pwr);
+	} else {
+		regulator_enable(pnl_pwr);
+	}
+
+	mdelay(star_pnl_to_lvds_ms);
+	gpio_set_value(star_lvds_shutdown, 1);
+	mdelay(star_lvds_to_bl_ms);
+
+	gpio_set_value(star_bl_enb, 1);
+
 	return 0;
 }
 
 static int star_panel_disable(void)
 {
+	gpio_set_value(star_bl_enb, 0);
+	gpio_set_value(star_lvds_shutdown, 0);
+	regulator_disable(pnl_pwr);
 	return 0;
 }
 
 static int star_hdmi_enable(void)
 {
+	if (get_hw_rev() >= REV_F) {
+		if (hdmi_pwr == NULL) {
+			hdmi_pwr = regulator_get(NULL, "pnl_pwr");
+			if (WARN_ON(IS_ERR(hdmi_pwr)))
+				pr_err("%s: couldn't get regulator hdmi_pwr: %ld\n",
+				       __func__, PTR_ERR(hdmi_pwr));
+			else
+				regulator_enable(hdmi_pwr);
+		} else {
+			regulator_enable(hdmi_pwr);
+		}
+	}
+
 	if (!star_hdmi_reg) {
 		star_hdmi_reg = regulator_get(NULL, "avdd_hdmi"); /* LD07 */
 		if (IS_ERR_OR_NULL(star_hdmi_reg)) {
@@ -128,10 +161,14 @@ static int star_hdmi_enable(void)
 static int star_hdmi_disable(void)
 {
 	printk("[PM] %s() 0x%x\n", __func__, (unsigned int)star_hdmi_reg);
+
 	if (star_hdmi_reg)
 		regulator_disable(star_hdmi_reg);
 	if (star_hdmi_pll)
 		regulator_disable(star_hdmi_pll);
+	if (hdmi_pwr)
+		regulator_disable(hdmi_pwr);
+
 	return 0;
 }
 
@@ -312,50 +349,30 @@ struct early_suspend star_panel_early_suspender;
 
 static void star_panel_early_suspend(struct early_suspend *h)
 {
-	if (num_registered_fb > 0) {
-		printk("calling %s !\n", __func__);
-		gpio_set_value(star_bl_enb, 0);
-		msleep(500);
-
-		gpio_set_value(star_lvds_shutdown, 0);
-		msleep(1);
-		mutex_lock(&v3_3_control);
-		is_early_suspend = 1;
-		mutex_unlock(&v3_3_control);
-		if (get_hw_rev() >= REV_F) {
-			disable_irq(gpio_to_irq(star_hdmi_hpd));
-			gpio_set_value(star_panel_enb, 0);
-			printk("v3.3 off in %s !\n", __func__);
-			tegra_panel_hdmi_earlysuspend();
-		}
-
+	/* power down LCD, add use a black screen for HDMI */
+	if (num_registered_fb > 0)
 		fb_blank(registered_fb[0], FB_BLANK_POWERDOWN);
-	}
-	printk("leaving  %s !\n", __func__);
+	if (num_registered_fb > 1)
+		fb_blank(registered_fb[1], FB_BLANK_NORMAL);
+
+#ifdef CONFIG_TEGRA_CONVSERVATIVE_GOV_ON_EARLYSUPSEND
+	cpufreq_store_default_gov();
+	if (cpufreq_change_gov(cpufreq_conservative_gov))
+		pr_err("Early_suspend: Error changing governor to %s\n",
+				cpufreq_conservative_gov);
+#endif
 }
 
 static void star_panel_late_resume(struct early_suspend *h)
 {
-	if (num_registered_fb > 0) {
-		printk("calling %s !\n", __func__);
-		tegra_panel_cancel_early_work();
-		if (get_hw_rev() >= REV_F) {
-			gpio_set_value(star_panel_enb, 1);
-			printk("v3.3 on in %s !\n", __func__);
-		}
-		mutex_lock(&v3_3_control);
-		is_early_suspend = 0;
-		mutex_unlock(&v3_3_control);
-		fb_blank(registered_fb[0], FB_BLANK_UNBLANK);
-		msleep(1);
-		gpio_set_value(star_lvds_shutdown, 1);
+	unsigned i;
 
-		msleep(200);
-		gpio_set_value(star_bl_enb, 1);
-
-		tegra_panel_hdmi_detect();
-	}
-	printk("leaving %s !\n", __func__);
+#ifdef CONFIG_TEGRA_CONVSERVATIVE_GOV_ON_EARLYSUPSEND
+	if (cpufreq_restore_default_gov())
+		pr_err("Early_suspend: Unable to restore governor\n");
+#endif
+	for (i = 0; i < num_registered_fb; i++)
+		fb_blank(registered_fb[i], FB_BLANK_UNBLANK);
 }
 
 #endif
@@ -365,17 +382,17 @@ int __init star_panel_init(void)
 	int err;
 	struct resource *res;
 
-	gpio_request(star_bl_enb, "wled_en");
+	gpio_request(star_bl_enb, "backlight_en");
 	tegra_gpio_enable(star_bl_enb);
 	gpio_direction_output(star_bl_enb, 1);
 
-	gpio_request(star_lvds_shutdown, "lvds_en");
-	tegra_gpio_enable(star_lvds_shutdown);
+	gpio_request(star_lvds_shutdown, "lvds_shdn");
 	gpio_direction_output(star_lvds_shutdown, 1);
+	tegra_gpio_enable(star_lvds_shutdown);
 
-	gpio_request(star_panel_enb, "vdd_3v3_en");
-	tegra_gpio_enable(star_panel_enb);
-	gpio_direction_output(star_panel_enb, 1);
+	tegra_gpio_enable(star_hdmi_enb);
+	gpio_request(star_hdmi_enb, "hdmi_5v_en");
+	gpio_direction_output(star_hdmi_enb, 1);
 
 	tegra_gpio_enable(star_hdmi_hpd);
 	gpio_request(star_hdmi_hpd, "hdmi_hpd");
@@ -428,29 +445,3 @@ int __init star_panel_init(void)
 
 	return err;
 }
-
-#if defined (CONFIG_MACH_STARTABLET)
-void set_v3_3(int i)
-{
-
-	mutex_lock(&v3_3_control);
-	if (!is_early_suspend) {
-		v3_3_count = 0;
-		mutex_unlock(&v3_3_control);
-		return;
-	}
-	if (!i)
-		v3_3_count--;
-	if (v3_3_count < 0)
-		printk("%s: warning!! v3_3_count is negative !\n", __func__);
-	if (v3_3_count == 0) {
-		gpio_set_value(star_panel_enb, i);
-		if (i)
-			msleep(10);
-	}
-	if (i)
-		v3_3_count++;
-
-	mutex_unlock(&v3_3_control);
-}
-#endif

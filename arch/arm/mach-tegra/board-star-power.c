@@ -16,6 +16,8 @@
  * 02111-1307, USA
  */
 #include <linux/i2c.h>
+#include <linux/platform_device.h>
+#include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/mfd/tps6586x.h>
 #include <linux/gpio.h>
@@ -228,6 +230,33 @@ static struct tegra_suspend_platform_data star_suspend_pdata = {
        /* .wake_any = STAR_WAKE_AC_DET_ANY | STAR_WAKE_USB_DET_ANY, */
 };
 
+
+
+static struct regulator_consumer_supply pnl_pwr_consumer_supply[] = {
+	REGULATOR_SUPPLY("pnl_pwr", NULL),
+};
+
+FIXED_VOLTAGE_REG_INIT(2, pnl_pwr, 3300000, PANEL_POWER_EN_GPIO,
+				0, 1, 0, REGULATOR_CHANGE_STATUS, 0);
+
+static struct platform_device *fixed_voltage_regulators[] __initdata = {
+	ADD_FIXED_VOLTAGE_REG(pnl_pwr),
+};
+
+int __init star_fixed_voltage_regulator_init(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(fixed_voltage_regulators); ++i) {
+		struct fixed_voltage_config *fixed_voltage_regulators_pdata =
+			fixed_voltage_regulators[i]->dev.platform_data;
+		if (fixed_voltage_regulators_pdata->gpio < TEGRA_NR_GPIOS)
+			tegra_gpio_enable(fixed_voltage_regulators_pdata->gpio);
+	}
+	return platform_add_devices(fixed_voltage_regulators,
+				    ARRAY_SIZE(fixed_voltage_regulators));
+}
+
 int __init star_regulator_init(void)
 {
 	void __iomem *pmc = IO_ADDRESS(TEGRA_PMC_BASE);
@@ -246,5 +275,8 @@ int __init star_regulator_init(void)
 	writel(pmc_ctrl | PMC_CTRL_INTR_LOW, pmc + PMC_CTRL);
 	i2c_register_board_info(4, star_regulators, 1);
 	tegra_init_suspend(&star_suspend_pdata);
+
+	star_fixed_voltage_regulator_init();
+
 	return 0;
 }
