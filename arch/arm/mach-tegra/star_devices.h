@@ -340,7 +340,11 @@ static struct i2c_board_info __initdata star_i2c_bus1_devices_info[] ={
 		I2C_BOARD_INFO("star_muic", STAR_I2C_DEVICE_ADDR_MUIC),
 	},
 	{
+#ifdef CONFIG_TOUCHSCREEN_ATMEL_MXT
 		I2C_BOARD_INFO("atmel_mxt_ts", STAR_I2C_DEVICE_ADDR_TOUCH),
+#else
+		I2C_BOARD_INFO("mXT1386", STAR_I2C_DEVICE_ADDR_TOUCH),
+#endif
 		.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PW0),
 		.platform_data = &atmel_mxt_ts_pdata,
 	},

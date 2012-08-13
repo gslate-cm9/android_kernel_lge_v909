@@ -1776,10 +1776,10 @@ param_check_ok:
 	pinValue = gpio_get_value(TOUCH_INT);
 	printk(" touch interrupt1 =%d \n",pinValue);
 
-	mxt->irq = gpio_to_irq(TOUCH_INT);
-	client->irq = gpio_to_irq(TOUCH_INT);
-	error = request_threaded_irq(gpio_to_irq(TOUCH_INT), NULL, mxt_irq_handler,
-				     IRQF_ONESHOT | IRQF_TRIGGER_LOW, "touch_int_n", mxt);
+	mxt->irq = client->irq;
+	error = request_threaded_irq(mxt->irq, NULL, mxt_irq_handler,
+				     IRQF_ONESHOT | IRQF_TRIGGER_LOW,
+				     "touch_int_n", mxt);
 
 	pinValue = gpio_get_value(TOUCH_INT);
 	printk(" touch interrupt2 =%d \n",pinValue);
