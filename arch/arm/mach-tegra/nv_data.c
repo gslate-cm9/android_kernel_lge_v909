@@ -14,13 +14,14 @@
 #define LGE_FILENAME	"/dev/block/mmcblk0p7"
 #define MSC_FILENAME	"/dev/block/mmcblk0p3"
 
-int set_frst_flag(int mode)
+int set_frst_flag(void)
 {
 	int fd=0;
+	const char *mode="4";
 	char nv_buf[NV_BUFFER_SIZE];
 	mm_segment_t old_fs;
 
-	printk(KERN_INFO "%s: frst: %d: start\n", __func__, mode);
+	printk(KERN_INFO "%s: frst: %s: start\n", __func__, mode);
 
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
@@ -33,13 +34,13 @@ int set_frst_flag(int mode)
 	}
 
 	sys_lseek(fd, FRST_FLAG * NV_SECTOR_SIZE, SEEK_SET);
-	sprintf(nv_buf, "%d", mode);
+	sprintf(nv_buf, "%s", mode);
 	sys_write(fd, nv_buf, NV_BUFFER_SIZE);
 	sys_close(fd);
 	set_fs(old_fs);
 	sys_sync();
 
-	printk(KERN_INFO "%s: frst: %d: done\n", __func__, mode);
+	printk(KERN_INFO "%s: frst: %s: done\n", __func__, mode);
 
 	return 0;
 }
@@ -73,7 +74,6 @@ int write_rr_into_nv(const char *cmd)
 		sys_sync();
 
 		printk(KERN_INFO "%s: reason: %s: done\n", __func__, cmd);
-		set_frst_flag(0);
 	}
 	else if ( !strncmp(cmd, "recovery", sizeof("recovery")) )
 	{
@@ -99,7 +99,7 @@ int write_rr_into_nv(const char *cmd)
 		sys_sync();
 
 		printk(KERN_INFO "%s: reason: %s: done\n", __func__, cmd);
-		set_frst_flag(4);
+		set_frst_flag();
 	}
 	else if ( !strncmp(cmd, "otp", sizeof("otp")) )
 	{
