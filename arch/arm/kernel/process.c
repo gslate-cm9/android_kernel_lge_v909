@@ -59,10 +59,6 @@ static const char *isa_modes[] = {
 
 extern void setup_mm_for_reboot(char mode);
 
-#ifdef CONFIG_MACH_STARTABLET
-extern void tegra_dvfs_disable_core_cpu(void);
-#endif
-
 static volatile int hlt_counter;
 
 #include <mach/system.h>
@@ -332,9 +328,6 @@ __setup("reboot=", reboot_setup);
 
 void machine_shutdown(void)
 {
-#ifdef CONFIG_MACH_STARTABLET
-	tegra_dvfs_disable_core_cpu();
-#endif
 #ifdef CONFIG_SMP
 	smp_send_stop();
 #endif
